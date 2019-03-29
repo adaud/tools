@@ -1,0 +1,476 @@
+(setq package-archives '(("org" . "http://orgmode.org/elpa/")
+			 ("gnu" . "http://elpa.gnu.org/packages/")
+                         ("marmalade" . "http://marmalade-repo.org/packages/")
+                         ("melpa" . "http://melpa.milkbox.net/packages/")))
+(package-initialize)
+(add-to-list 'load-path "~/.emacs.d/")
+(add-to-list 'load-path "~/go/src/github.com/dougm/goflymake")
+
+;; Global coloring
+;(global-font-lock-mode)
+(put 'upcase-region 'disabled nil)
+
+; Mac key bindings
+(setq mac-option-key-is-meta nil)
+(setq mac-command-key-is-meta t)
+(setq mac-command-modifier 'meta)
+(setq mac-option-modifier nil)
+
+; Hide the tool bar
+(tool-bar-mode 0)
+
+;; ;; For imwheel -- doesn't work
+;; (setq imwheel-scroll-interval 3)
+;; (defun imwheel-scroll-down-some-lines ()
+;;   (interactive)
+;;   (scroll-down imwheel-scroll-interval))
+;; (defun imwheel-scroll-up-some-lines ()
+;;   (interactive)
+;;   (scroll-up imwheel-scroll-interval))
+;; (global-set-key [?\M-\C-\)] 'imwheel-scroll-up-some-lines)
+;; (global-set-key [?\M-\C-\(] 'imwheel-scroll-down-some-lines)
+;; ;; end imwheel section
+
+;;Mousewheel -- works...but the one line solution is better below!
+(defun sd-mousewheel-scroll-up (event)
+  "Scroll window under mouse up by ten lines."
+  (interactive "e")
+  (let ((current-window (selected-window)))
+    (unwind-protect
+        (progn 
+          (select-window (posn-window (event-start event)))
+          (scroll-up 10))
+      (select-window current-window))))
+
+(defun sd-mousewheel-scroll-down (event)
+  "Scroll window under mouse down by ten lines."
+  (interactive "e")
+  (let ((current-window (selected-window)))
+    (unwind-protect
+        (progn 
+          (select-window (posn-window (event-start event)))
+          (scroll-down 10))
+      (select-window current-window))))
+
+(global-set-key (kbd "<mouse-5>") 'sd-mousewheel-scroll-up)
+(global-set-key (kbd "<mouse-4>") 'sd-mousewheel-scroll-down)
+
+;;(global-set-key "\C-x C-c C-x C-c" 'save-buffers-kill-emacs)
+
+;; One line solution to the one above but only scrolls 5 lines
+;(mouse-wheel-mode t)
+
+;; Turn on column display mode
+(add-to-list 'column-number-mode 1)
+
+; get help
+(global-set-key [(f1)] (lambda () (interactive) (manual-entry (current-word))))
+
+; grep
+;(defun my_grep ();(&optional str)
+  ;(set 'str (current-word))
+  ;(print str)
+  ;(interactive (list (read-string "Enter string to search: ")))
+  ;(print (current-word)))
+  ;(setq grep-command "grep -R -n -e --include='*.[h|c]' *")
+  ;(shell-command "grep -R -n -e %s --include='*.[h|c]' *" (current-word)))
+
+;; (global-set-key [(f7)] 
+;; 		(lambda () (interactive) 
+;; 		  (grep "-R -n -e %s --include='*.[h|c]' * " (current-word))))
+
+(global-set-key [(f7)] 'grep)
+(setq grep-command "grep -R -n -e --include='*.[h|c]' *")
+
+; auto-indent new lines
+;; (define-key global-map (kbd "RET") 'newline-and-indent)
+
+; goto-line
+(global-set-key "\C-l" 'goto-line)
+
+; previous window
+(global-set-key "\C-x\S-O" 'previous-multiframe-window)
+
+;; DOESN'T WORK
+;; ; follow mouse focus
+;; (setq focus-follows-mouse 't)
+;; (setq mouse-autoselect-window 't)
+
+;; bsd-mode
+; C modifications for FreeBSD mode as per style(9)
+(defun bsd-mode () (interactive)
+  (c-set-style "bsd")
+  (setq indent-tabs-mode t)
+  (setq comment-multi-line 't)
+  (setq c-hanging-comment-starter-p 'nil)
+  (setq c-hanging-comment-ender-p 'nil)
+  (setq c-comment-continuation-stars "* ")
+  (c-set-offset 'defun-block-intro 8)
+  (c-set-offset 'statement-block-intro 8)
+  (c-set-offset 'statement-case-intro 8)
+  (c-set-offset 'substatement-open 4)
+  (c-set-offset 'substatement 8)
+  (c-set-offset 'inclass 8)
+  (c-set-offset 'knr-argdecl-intro 0)
+  (c-set-offset 'arglist-cont-nonempty 4)
+  (c-set-offset 'inline-open 0)
+  (c-set-offset 'case-label 0)
+  (c-set-offset 'statement-cont 4)
+  (c-set-offset 'label 1)
+  (setq c-cleanup-list 
+	(append c-cleanup-list 
+		(list 'brace-else-brace 'brace-elseif-brace)))
+  (define-key c-mode-map "\C-m" 'newline-and-indent)
+  (define-key c-mode-map [(f9)] 'compile)
+  (define-key c-mode-map [(f3)] (lambda () (interactive) (tags-search (current-word)))))
+;;  (cscope-bind-keys))
+;;  (setq c-label-minimum-indentation 0))
+
+(add-hook 'c-mode-common-hook
+	  '(lambda() (progn
+		       (bsd-mode)
+		       (which-func-mode)
+		       (setq fill-column 79)
+		       (auto-fill-mode))))
+
+(setq c-default-style "linux") ; XXX: OVERRIDES ABOVE
+
+(defun isilon-insert-big-comment (&optional cmntstr)
+  "Add a figlet comment for the given text"
+  (interactive
+   (list
+    (read-string "Enter string to comment: ")))
+
+  (save-excursion
+    (let ((start (point))
+	  (bigstr (shell-command-to-string (format "figlet %s" cmntstr)))
+	  (comment-style 'multi-line))
+      (insert bigstr)
+; remove the last blank line... amazing how hard this is to do
+; safely (ie prove it's blank).
+      (let ((killend (point)))
+	(previous-line 1)
+	(kill-region (point) killend))
+; comment the region, but also add a missing final return for the
+; block comment style.  Place an easy-to-find char that we'll delete
+; later... because comment-region requires a non-blank-line.
+      (insert "x\n")
+      (comment-region start (point))
+      (save-excursion
+	; now delete our marker
+	(re-search-backward "x" start)
+	(let ((killend (+ (point) 1)))
+	  (beginning-of-line)
+	  (kill-region (point) killend)))
+      )))
+
+;; Cool Tricks
+;; ; Startup Stuff
+;; (split-window-horizontally)   ;; want two windows at startup 
+;; (other-window 1)              ;; move to other window
+;; (shell)                       ;; start a shell
+;; (rename-buffer "shell-first") ;; rename it
+;; (other-window 1)              ;; move back to first window 
+
+;;; bind compile to F9
+;;(global-set-key [(f9)] 'compile)
+
+;;; bind tags-search to F3
+;;(c-set-key [(f3)] (lambda () (interactive) (tags-search (current-word))))
+
+; close the compilation window for a successful compilation
+;; (setq compilation-finish-function
+;;       (lambda (buf str)
+;;         (if (string-match "exited abnormally" str)
+;;             ;;there were errors
+;;             (message "compilation errors, press C-x ` to visit")
+;;           ;;no errors, make the compilation window go away in 0.5 seconds
+;;           (run-at-time 0.5 nil 'delete-windows-on buf)
+;;           (message "NO COMPILATION ERRORS!"))))
+
+; highlight matching parentheses next to cursor
+(require 'paren)(show-paren-mode t)
+
+; highlight region between mark and point
+(transient-mark-mode t)
+
+; highlight incremental search
+;(setq search-highlight t)
+
+; Moving cursor down at bottom scrolls only a single line, not half page
+(setq scroll-step 1)
+(setq scroll-conservatively 5)
+(global-set-key [delete] 'delete-char)
+
+;delete "hungrily" in C mode
+(setq c-hungry-delete-key t)
+
+;let emacs put in a "carriage-return" for you automatically after left curly braces, right curly braces, and semi-colons in "C mode"
+;(setq c-auto-newline 1)
+
+; press Ctrl+Enter to auto-expand partial strings
+(global-set-key [C-return]         'dabbrev-expand)
+(define-key esc-map [C-return]     'dabbrev-completion)
+(setq dabbrev-case-replace nil)
+
+; Reload the current file while remembering the cursor position
+(defun reload-file ()
+  (interactive)
+  (let ((curr-scroll (window-vscroll)))
+    (find-file (buffer-name))
+    (set-window-vscroll nil curr-scroll)
+    (message "Reloaded file")))
+ 
+(global-set-key "\C-c\C-r" 'reload-file)
+
+;; This is a way to hook tempo into cc-mode
+(defvar c-tempo-tags nil
+  "Tempo tags for C mode")
+(defvar c++-tempo-tags nil
+  "Tempo tags for C++ mode")
+
+;;; C-Mode Templates and C++-Mode Templates (uses C-Mode Templates also)
+(require 'tempo)
+(setq tempo-interactive t)
+
+(add-hook 'c-mode-hook
+          '(lambda ()
+             (local-set-key [f11] 'tempo-complete-tag)
+             (tempo-use-tag-list 'c-tempo-tags)
+             ))
+(add-hook 'c++-mode-hook
+          '(lambda ()
+             (local-set-key [f11] 'tempo-complete-tag)
+             (tempo-use-tag-list 'c-tempo-tags)
+             (tempo-use-tag-list 'c++-tempo-tags)
+             ))
+
+;;; Preprocessor Templates (appended to c-tempo-tags)
+(tempo-define-template "c-include"
+		       '("include <" r ".h>" > n
+			 )
+		       "include"
+		       "Insert a #include <> statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-ifdef"
+		       '("ifdef " (p "ifdef-clause: " clause) > n> p n
+			 "#else /* !(" (s clause) ") */" n> p n
+			 "#endif /* " (s clause)" */" n>
+			 )
+		       "ifdef"
+		       "Insert a #ifdef #else #endif statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-ifndef"
+		       '("ifndef " (p "ifndef-clause: " clause) > n
+			 "#define " (s clause) n> p n
+			 "#endif /* " (s clause)" */" n>
+			 )
+		       "ifndef"
+		       "Insert a #ifndef #define #endif statement"
+		       'c-tempo-tags)
+;;; C-Mode Templates
+
+(tempo-define-template "c-if"
+		       '(> "if (" (p "if-clause: " clause) ")" n>
+                           "{" > n>
+                           > r n
+                           "}" > n>
+                           )
+		       "if"
+		       "Insert a C if statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-else"
+		       '(> "else" n>
+                           "{" > n>
+                           > r n
+                           "}" > n>
+                           )
+		       "else"
+		       "Insert a C else statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-if-else"
+		       '(> "if (" (p "if-clause: " clause) ")"  n>
+                           "{" > n
+                           > r n
+                           "}" > n
+                           "else" > n
+                           "{" > n>
+                           > r n
+                           "}" > n>
+                           )
+		       "ifelse"
+		       "Insert a C if else statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-while"
+		       '(> "while (" (p "while-clause: " clause) ")" >  n>
+                           "{" > n
+                           > r n
+                           "}" > n>
+                           )
+		       "while"
+		       "Insert a C while statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-for"
+		       '(> "for (" (p "for-clause: " clause) ")" >  n>
+                           "{" > n
+                           > r n
+                           "}" > n>
+                           )
+		       "for"
+		       "Insert a C for statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-for-i"
+		       '(> "for (" (p "variable: " var) " = 0; " (s var)
+                           " < "(p "upper bound: " ub)"; " (s var) "++)" >  n>
+                           "{" > n
+                           > r n
+                           "}" > n>
+                           )
+		       "fori"
+		       "Insert a C for loop: for(x = 0; x < ..; x++)"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-main"
+		       '(> "int main(int argc, char *argv[])" >  n>
+                           "{" > n>
+                           > r n
+                           > "return 0 ;" n>
+                           > "}" > n>
+                           )
+		       "main"
+		       "Insert a C main statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-if-malloc"
+		       '(> (p "variable: " var) " = ("
+                           (p "type: " type) " *) malloc (sizeof(" (s type)
+                           ") * " (p "nitems: " nitems) ") ;" n>
+                           > "if (" (s var) " == NULL)" n>
+                           > "error_exit (\"" (buffer-name) ": " r ": Failed to malloc() " (s var) " \") ;" n>
+                           )
+		       "ifmalloc"
+		       "Insert a C if (malloc...) statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-if-calloc"
+		       '(> (p "variable: " var) " = ("
+                           (p "type: " type) " *) calloc (sizeof(" (s type)
+                           "), " (p "nitems: " nitems) ") ;" n>
+                           > "if (" (s var) " == NULL)" n>
+                           > "error_exit (\"" (buffer-name) ": " r ": Failed to calloc() " (s var) " \") ;" n>
+                           )
+		       "ifcalloc"
+		       "Insert a C if (calloc...) statement"
+		       'c-tempo-tags)
+
+(tempo-define-template "c-switch"
+		       '(> "switch (" (p "switch-condition: " clause) ")" n>
+                           "{" >  n>
+                           "case " (p "first value: ") ":" > n> p n
+                           "break;" > n> p n
+                           "default:" > n> p n
+                           "break;" > n
+                           "}" > n>
+                           )
+		       "switch"
+		       "Insert a C switch statement"
+		       'c-tempo-tags)
+(tempo-define-template "c-case"
+		       '(n "case " (p "value: ") ":" > n> p n
+			   "break;" > n> p
+			   )
+		       "case"
+		       "Insert a C case statement"
+		       'c-tempo-tags)
+
+;; Python Mode
+(autoload 'python-mode "python-mode" "Python Mode." t)
+(add-to-list 'auto-mode-alist '("\\.py\\'" . python-mode))
+(add-to-list 'interpreter-mode-alist '("python" . python-mode))
+
+;(defun bsd-mode () (interactive)
+;  (c-set-style "bsd")
+;  (setq indent-tabs-mode t)
+;  (c-set-offset 'defun-block-intro 8)
+;  (c-set-offset 'statement-block-intro 8)
+;  (c-set-offset 'statement-case-intro 8)
+;  (c-set-offset 'substatement-open 4)
+;  (c-set-offset 'substatement 8)
+;  (c-set-offset 'arglist-cont-nonempty 4)
+;  (c-set-offset 'inclass 8)
+;  (c-set-offset 'knr-argdecl-intro 8))
+;; end bsd-mode section
+
+;; Chapel Formatting
+; query the environment variable CHPL_HOME
+(setq chpl-home (getenv "CHPL_HOME"))
+
+; prepend $CHPL_HOME/etc/emacs/x.y to your emacs load-path where x.y
+; is your emacs version number
+(if (string= chpl-home nil)
+    nil
+  (add-to-list 'load-path (concat chpl-home
+                                  "/etc/emacs/"
+                                  (number-to-string emacs-major-version) 
+                                  "."
+                                  (number-to-string emacs-minor-version)
+                                  )
+               )
+  )
+
+; make sure that when chpl-mode is entered, (our modified) cc-mode is
+; loaded
+(autoload 'chpl-mode "chpl-mode" "Chpl enhanced cc-mode" t)
+
+; make loading files with a .chpl extension put emacs into chpl-mode
+(add-to-list 'auto-mode-alist '("\\.chpl$" . chpl-mode))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; ####### Golang SUPPORT ########
+(require 'go-autocomplete)
+(require 'auto-complete-config)
+(ac-config-default)
+
+(when (memq window-system '(mac ns x))
+  (exec-path-from-shell-initialize))
+
+(add-hook 'before-save-hook 'gofmt-before-save)
+
+(add-hook 'go-mode-hook (lambda ()
+                          (local-set-key (kbd "C-c C-r") 'go-remove-unused-imports)))
+
+(add-hook 'go-mode-hook (lambda ()
+                          (local-set-key (kbd \"M-.\") 'godef-jump)))
+
+(add-to-list 'load-path "~/go/src/github.com/dougm/goflymake")
+(require 'go-flymake)
+;(require 'go-flycheck)
+
+;; ####### MD SUPPORT ########
+
+(autoload 'markdown-mode "markdown-mode"
+   "Major mode for editing Markdown files" t)
+(add-to-list 'auto-mode-alist '("\\.md\\'" . gfm-mode))
+(add-to-list 'auto-mode-alist '("\\.text\\'" . gfm-mode))
+(add-to-list 'auto-mode-alist '("\\.markdown\\'" . gfm-mode))
+(setq markdown-command "redcarpet")
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-enabled-themes (quote (tsdh-dark))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
